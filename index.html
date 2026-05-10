@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AssetCare - Enterprise Management</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-100 font-sans text-slate-800">
+
+<div id="app" class="min-h-screen flex flex-col">
+    
+    <!-- ================= AUTHENTICATION ================= -->
+    <div v-if="!currentUser" class="min-h-screen flex items-center justify-center bg-slate-900 p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
+            <div class="text-center mb-6">
+                <i class="fas fa-shield-alt text-4xl text-blue-600 mb-3"></i>
+                <h1 class="text-2xl font-bold text-slate-800">AssetCare Login</h1>
+            </div>
+
+            <!-- Login View -->
+            <div v-if="authView === 'login'" class="space-y-4">
+                <input v-model="authForm.username" type="text" placeholder="Username" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <input v-model="authForm.password" type="password" placeholder="Password" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <button @click="login" class="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition">Sign In</button>
+                <div class="flex justify-between mt-2">
+                    <button @click="authView = 'forgot'" class="text-sm text-blue-500 hover:underline">Forgot Password?</button>
+                    <button @click="authView = 'register'" class="text-sm text-gray-500 hover:underline">Register New Account</button>
+                </div>
+            </div>
+
+            <!-- Register View -->
+            <div v-if="authView === 'register'" class="space-y-4">
+                <input v-model="authForm.email" type="email" placeholder="Email Address (e.g., user@domain.com)" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <input v-model="authForm.username" type="text" placeholder="Choose Username" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <input v-model="authForm.password" type="password" placeholder="Password (Min 8 chars, 1 number, 1 symbol)" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <input v-model="authForm.confirmPassword" type="password" placeholder="Confirm Password" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <button @click="register" class="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition">Create Account</button>
+                <button @click="authView = 'login'" class="w-full text-sm text-gray-500 mt-2 hover:underline">Back to Login</button>
+            </div>
+
+            <!-- Forgot Password View -->
+            <div v-if="authView === 'forgot'" class="space-y-4">
+                <p class="text-sm text-gray-600 mb-2">Enter your credentials to verify your identity.</p>
+                <input v-model="forgotForm.username" type="text" placeholder="Your Username" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <input v-model="forgotForm.email" type="email" placeholder="Your Registered Email" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <button @click="verifyForgotIdentity" class="w-full bg-orange-500 text-white font-bold py-3 rounded hover:bg-orange-600 transition">Verify Identity</button>
+                <button @click="authView = 'login'" class="w-full text-sm text-gray-500 mt-2 hover:underline">Back to Login</button>
+            </div>
+
+            <!-- Reset Password View -->
+            <div v-if="authView === 'reset'" class="space-y-4">
+                <p class="text-sm text-green-600 font-bold mb-2">Identity verified. Enter your new password.</p>
+                <input v-model="forgotForm.newPassword" type="password" placeholder="New Password (Min 8 chars, 1 number, 1 symbol)" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <input v-model="forgotForm.confirmPassword" type="password" placeholder="Confirm New Password" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <button @click="resetPassword" class="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition">Save New Password</button>
+                <button @click="authView = 'login'" class="w-full text-sm text-gray-500 mt-2 hover:underline">Cancel</button>
+            </div>
+
+            <!-- System Messages -->
+            <div v-if="authMessage" class="mt-4 p-3 text-sm text-center rounded font-bold" :class="messageColor">
+                {{ authMessage }}
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MAIN APP ================= -->
+    <div v-else class="flex-grow flex flex-col">
+        <nav class="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+                <div class="flex items-center gap-4">
+                    <h1 class="text-xl font-bold"><i class="fas fa-laptop-medical text-blue-400"></i> AssetCare</h1>
+                    <span class="bg-blue-900 text-[10px] px-2 py-1 rounded border border-blue-700 uppercase font-bold">{{ currentUser.role }}</span>
+                </div>
+                <div class="flex gap-4 items-center">
+                    <button @click="activeTab = 'dashboard'" :class="tabClass('dashboard')">Dashboard</button>
+                    <button @click="activeTab = 'inventory'" :class="tabClass('inventory')">Inventory</button>
+                    <button @click="activeTab = 'add'" :class="tabClass('add')">Add Device</button>
+                    <button @click="activeTab = 'profile'" :class="tabClass('profile')">My Profile</button>
+                    <button v-if="currentUser.role === 'admin'" @click="activeTab = 'bulk'" :class="tabClass('bulk')" class="text-green-400">Bulk Import</button>
+                    <button v-if="currentUser.role === 'admin'" @click="activeTab = 'users'" :class="tabClass('users')" class="text-amber-400">Users</button>
+                    <button @click="logout" class="text-red-400 hover:text-red-200 ml-4"><i class="fas fa-power-off"></i></button>
+                </div>
+            </div>
+        </nav>
+
+        <main class="flex-grow p-4 md:p-6 max-w-7xl mx-auto w-full">
+            
+            <!-- TAB: DASHBOARD -->
+            <div v-if="activeTab === 'dashboard'" class="space-y-6">
+                <!-- Top Overview -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-xl shadow border-t-4 border-blue-500">
+                        <p class="text-gray-500 text-xs font-bold uppercase">Total Assets registered</p>
+                        <p class="text-4xl font-black">{{ assets.length }}</p>
+                    </div>
+                    <div class="bg-slate-800 text-white p-6 rounded-xl shadow border-t-4 border-blue-400">
+                        <p class="text-blue-300 text-xs font-bold uppercase">On the Repair Cell (Current)</p>
+                        <p class="text-4xl font-black">{{ inRepairCount }}</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow border-t-4 border-emerald-500">
+                        <p class="text-gray-500 text-xs font-bold uppercase">All-Time Repaired</p>
+                        <p class="text-4xl font-black">{{ allTimeRepairedCount }}</p>
+                    </div>
+                </div>
+
+                <!-- Detailed Status Grid -->
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-yellow-500">
+                        <p class="text-gray-400 text-[10px] font-black uppercase">Pending</p>
+                        <p class="text-2xl font-bold text-slate-700">{{ statusCounts['Pending'] || 0 }}</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-sky-400">
+                        <p class="text-gray-400 text-[10px] font-black uppercase">On Quick Repair</p>
+                        <p class="text-2xl font-bold text-slate-700">{{ statusCounts['Quick Repair Stage'] || 0 }}</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-orange-500">
+                        <p class="text-gray-400 text-[10px] font-black uppercase">Complex Issues</p>
+                        <p class="text-2xl font-bold text-slate-700">{{ statusCounts['Complex Stage'] || 0 }}</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-green-500">
+                        <p class="text-gray-400 text-[10px] font-black uppercase">Ready</p>
+                        <p class="text-2xl font-bold text-slate-700">{{ statusCounts['Ready'] || 0 }}</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-red-500">
+                        <p class="text-gray-400 text-[10px] font-black uppercase">Irreparable</p>
+                        <p class="text-2xl font-bold text-slate-700">{{ statusCounts['Irreparable'] || 0 }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: INVENTORY -->
+            <div v-if="activeTab === 'inventory'" class="space-y-6">
+                <div class="bg-white p-4 rounded-xl shadow border grid grid-cols-1 md:grid-cols-2 gap-4 sticky top-20 z-40">
+                    <div class="flex items-center gap-3 bg-slate-50 p-2 rounded border">
+                        <i class="fas fa-search text-gray-400"></i>
+                        <input v-model="searchQuery" type="text" placeholder="Search Tag or Serial..." class="w-full outline-none bg-transparent font-bold">
+                    </div>
+                    <div class="flex items-center gap-3 bg-slate-50 p-2 rounded border">
+                        <i class="fas fa-filter text-gray-400"></i>
+                        <select v-model="statusFilter" class="w-full bg-transparent outline-none font-semibold">
+                            <option value="">All Statuses</option>
+                            <option v-for="st in statusOptions" :value="st">{{ st }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div v-for="asset in filteredAssets" :key="asset.tag" class="bg-white rounded-xl shadow border overflow-hidden mb-4">
+                    <div class="p-4 bg-slate-50 border-b flex flex-wrap justify-between items-center gap-4">
+                        <div class="flex-grow">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-slate-200 text-slate-700 text-[10px] font-black px-2 py-0.5 rounded uppercase">{{ asset.type || 'Asset' }}</span>
+                                <h2 class="text-lg font-black text-slate-800">{{ asset.tag }} | {{ asset.brand }} {{ asset.model }}</h2>
+                            </div>
+                            <div class="flex gap-4 mt-1">
+                                <p class="text-xs font-mono text-gray-500 italic">SN: {{ asset.serial }}</p>
+                                <p class="text-[10px] text-orange-600 font-black uppercase">Age: {{ calculateAge(asset.purchaseDate) }}</p>
+                                <p class="text-[10px] text-emerald-600 font-black uppercase bg-emerald-50 px-2 rounded">Total Repair Cost: ৳{{ calculateTotalRepairCost(asset) }}</p>
+                                <p v-if="asset.repairCount" class="text-[10px] text-blue-600 font-black uppercase bg-blue-50 px-2 rounded">Repaired: {{ asset.repairCount }} times</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <select v-model="asset.status" @change="updateStatus(asset)" class="p-2 rounded font-bold text-xs border" :class="statusColor(asset.status)">
+                                <option v-for="st in statusOptions" :value="st">{{ st }}</option>
+                            </select>
+                            <button v-if="currentUser.role === 'admin'" @click="deleteAsset(asset.tag)" class="text-red-500 hover:text-red-700 p-2"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div class="p-4 grid md:grid-cols-2 gap-6">
+                        <div class="text-sm">
+                            <p class="font-bold mb-2 text-gray-400 uppercase text-[10px]">Technical History</p>
+                            <div class="max-h-40 overflow-y-auto space-y-2">
+                                <div v-for="rep in asset.repairs" class="bg-white p-2 rounded border-l-4 border-blue-500 shadow-sm">
+                                    <div class="flex justify-between font-black text-slate-700">
+                                        <span>Replaced: {{ rep.problem }}</span>
+                                        <span class="text-green-600">৳{{ rep.cost }}</span>
+                                    </div>
+                                    <p class="text-right text-[9px] text-gray-400">{{ rep.date }}</p>
+                                </div>
+                                <p v-if="!asset.repairs || !asset.repairs.length" class="text-gray-400 italic py-4 text-center">No history.</p>
+                            </div>
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-lg space-y-2">
+                            <input v-model="getDraft(asset.tag).problem" placeholder="Replaced Item" class="w-full p-2 border text-sm rounded">
+                            <input v-model="getDraft(asset.tag).cost" type="number" placeholder="Repair Cost (৳)" class="w-full p-2 border text-sm rounded">
+                            <button @click="addRepair(asset.tag)" class="w-full bg-blue-700 text-white font-bold py-2 rounded text-sm">Update Asset History</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: ADD SINGLE DEVICE -->
+            <div v-if="activeTab === 'add'" class="max-w-xl mx-auto bg-white p-8 rounded-xl shadow border">
+                <h2 class="text-xl font-bold mb-6 flex items-center gap-2 text-blue-600">
+                    <i class="fas fa-plus-circle"></i> Register New Device
+                </h2>
+                <div class="grid grid-cols-1 gap-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase">Asset Tag</label>
+                        <input v-model="singleForm.tag" type="text" placeholder="Ex: L-101" class="w-full border p-3 rounded mt-1">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase">Device Type</label>
+                        <input v-model="singleForm.type" type="text" placeholder="Laptop, Desktop, UPS etc." class="w-full border p-3 rounded mt-1">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase">Brand</label>
+                            <input v-model="singleForm.brand" type="text" placeholder="Ex: HP" class="w-full border p-3 rounded mt-1">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase">Model</label>
+                            <input v-model="singleForm.model" type="text" placeholder="Ex: ProBook 450" class="w-full border p-3 rounded mt-1">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase">Serial Number</label>
+                        <input v-model="singleForm.serial" type="text" placeholder="Manufacturer SN" class="w-full border p-3 rounded mt-1">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase">Purchase Date</label>
+                        <input v-model="singleForm.purchaseDate" type="date" class="w-full border p-3 rounded mt-1">
+                    </div>
+                    <button @click="addSingleDevice" class="w-full bg-blue-600 text-white font-bold py-4 rounded-lg shadow-lg hover:bg-blue-700 transition uppercase tracking-wider mt-4">
+                        Add Device
+                    </button>
+                </div>
+            </div>
+
+            <!-- BULK IMPORT TAB -->
+            <div v-if="activeTab === 'bulk' && currentUser.role === 'admin'" class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow border">
+                <div class="text-center mb-6"><i class="fas fa-file-csv text-5xl text-green-500 mb-4"></i><h2 class="text-2xl font-bold">Bulk Asset Upload</h2></div>
+                <div class="bg-slate-50 p-4 rounded-lg border-2 border-dashed border-slate-300 mb-6">
+                    <p class="text-[11px] font-black text-slate-600 uppercase mb-2">Sequence: Tag, Type, Brand, Model, Serial, Date</p>
+                    <input type="file" @change="handleFileUpload" accept=".csv" class="w-full text-sm">
+                </div>
+            </div>
+
+            <!-- PROFILE TAB -->
+            <div v-if="activeTab === 'profile'" class="max-w-md mx-auto space-y-6">
+                <!-- Change Password Box -->
+                <div class="bg-white p-8 rounded-xl shadow border">
+                    <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                        <i class="fas fa-key text-blue-600"></i> Change Password
+                    </h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-[10px] font-black text-gray-400 uppercase">New Password</label>
+                            <input v-model="profileUpdate.newPass" type="password" placeholder="Min 8 chars, 1 number, 1 symbol" class="w-full border p-3 rounded mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-black text-gray-400 uppercase">Confirm New Password</label>
+                            <input v-model="profileUpdate.confirmPass" type="password" placeholder="••••••••" class="w-full border p-3 rounded mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <button @click="changePassword" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow hover:bg-blue-700 transition">
+                            Update Password
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Change Email Box -->
+                <div class="bg-white p-8 rounded-xl shadow border">
+                    <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+                        <i class="fas fa-envelope text-blue-600"></i> Change Email Address
+                    </h2>
+                    <div class="space-y-4">
+                        <p class="text-xs font-bold text-gray-500">Current: <span class="text-blue-600">{{ currentUser.email }}</span></p>
+                        <div>
+                            <label class="text-[10px] font-black text-gray-400 uppercase">New Email Address</label>
+                            <input v-model="profileUpdate.newEmail" type="email" placeholder="new@domain.com" class="w-full border p-3 rounded mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
+                        <button @click="changeEmail" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg shadow hover:bg-slate-900 transition">
+                            Update Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- USERS TAB -->
+            <div v-if="activeTab === 'users' && currentUser.role === 'admin'" class="bg-white p-6 rounded-xl shadow border">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">System Users</h2>
+                    <span class="text-[10px] font-bold text-gray-400 bg-slate-100 px-3 py-1 rounded-full italic">Live monitoring enabled</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="bg-slate-100 text-[10px] font-black uppercase text-slate-600">
+                                <th class="p-4">Username</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4">Email</th>
+                                <th class="p-4">Account Status</th>
+                                <th class="p-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="u in users" :key="u.username" class="border-b">
+                                <td class="p-4 font-bold">{{ u.username }}</td>
+                                <td class="p-4">
+                                    <div class="flex items-center gap-2">
+                                        <div :class="isOnline(u) ? 'bg-green-500 animate-pulse' : 'bg-gray-300'" class="w-2 h-2 rounded-full"></div>
+                                        <span :class="isOnline(u) ? 'text-green-600 font-bold' : 'text-gray-400'" class="text-xs uppercase">
+                                            {{ isOnline(u) ? 'Online' : 'Offline' }}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-slate-500">{{ u.email || 'N/A' }}</td>
+                                <td class="p-4">
+                                    <span v-if="u.status === 'blocked'" class="text-red-600 text-[10px] font-black uppercase bg-red-50 px-2 py-1 rounded">Blocked</span>
+                                    <span v-else class="text-green-600 text-[10px] font-black uppercase bg-green-50 px-2 py-1 rounded">Active</span>
+                                </td>
+                                <td class="p-4 flex gap-2">
+                                    <template v-if="u.username !== currentUser.username">
+                                        <button @click="toggleUserBlock(u.username)" 
+                                                class="text-xs font-bold px-3 py-1 rounded border transition"
+                                                :class="u.status === 'blocked' ? 'bg-green-600 text-white' : 'bg-orange-500 text-white'">
+                                            {{ u.status === 'blocked' ? 'Unblock' : 'Block' }}
+                                        </button>
+                                        <button @click="deleteUser(u.username)" class="text-red-500 text-xs font-bold hover:underline">Delete</button>
+                                    </template>
+                                    <span v-else class="text-blue-500 text-[10px] font-black uppercase italic">Current Admin</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+    </div>
+</div>
+
+<script>
+    const { createApp } = Vue;
+    createApp({
+        data() {
+            return {
+                currentUser: null, 
+                authView: 'login', 
+                authMessage: '',
+                messageColor: 'bg-red-100 text-red-700',
+                authForm: { username: '', password: '', confirmPassword: '', email: '' },
+                forgotForm: { username: '', email: '', newPassword: '', confirmPassword: '' },
+                profileUpdate: { newPass: '', confirmPass: '', newEmail: '' },
+                singleForm: { tag: '', type: '', brand: '', model: '', serial: '', purchaseDate: '' },
+                users: [], activeTab: 'dashboard', searchQuery: '', statusFilter: '',
+                assets: [], draftRepairs: {},
+                statusOptions: ['Received for Repair', 'Pending', 'Quick Repair Stage', 'Complex Stage', 'Ready', 'Irreparable', 'Delivered To IT', 'N/A'],
+                heartbeatTimer: null
+            }
+        },
+        mounted() {
+            this.loadData();
+            const sess = sessionStorage.getItem('activeUserV2');
+            if(sess) {
+                this.currentUser = JSON.parse(sess);
+                this.startHeartbeat();
+            }
+            window.addEventListener('storage', (e) => {
+                if(e.key === 'assetCareUsers_v2') this.users = JSON.parse(e.newValue);
+            });
+        },
+        computed: {
+            filteredAssets() {
+                let list = this.assets;
+                if(this.searchQuery.trim()) {
+                    const q = this.searchQuery.toLowerCase();
+                    return list.filter(a => a.tag.toLowerCase().includes(q) || a.serial.toLowerCase().includes(q));
+                }
+                if(this.statusFilter) list = list.filter(a => a.status === this.statusFilter);
+                return list;
+            },
+            inRepairCount() { 
+                return this.assets.filter(a => ['Received for Repair', 'Pending', 'Quick Repair Stage', 'Complex Stage'].includes(a.status)).length; 
+            },
+            statusCounts() { const c = {}; this.assets.forEach(a => { c[a.status] = (c[a.status] || 0) + 1; }); return c; },
+            allTimeRepairedCount() { 
+                return this.assets.reduce((sum, asset) => sum + (asset.repairCount || 0), 0); 
+            }
+        },
+        methods: {
+            // HELPER: Validate Email Formats
+            isValidEmail(email) {
+                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(email);
+            },
+            // HELPER: Validate Password (Min 8, 1 Letter, 1 Number, 1 Symbol)
+            isValidPassword(password) {
+                const re = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+                return re.test(password);
+            },
+            showMessage(msg, type = 'error') {
+                this.authMessage = msg;
+                this.messageColor = type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+                setTimeout(() => { this.authMessage = ''; }, 5000);
+            },
+
+            loadData() {
+                // Changed storage key to "assetCareUsers_v2" to wipe out old logs and enforce the new system
+                let storedUsers = localStorage.getItem('assetCareUsers_v2');
+                if (!storedUsers) {
+                    // Hidden/Obfuscated Default Admin configuration (btoa encodes it to base64)
+                    const defaultAdmin = [{
+                        username: "admin",
+                        passwordHash: btoa("SuperAdmin#2026"), 
+                        role: "admin",
+                        status: "active",
+                        email: "admin@assetcare.com",
+                        lastSeen: 0
+                    }];
+                    localStorage.setItem('assetCareUsers_v2', JSON.stringify(defaultAdmin));
+                    this.users = defaultAdmin;
+                } else {
+                    this.users = JSON.parse(storedUsers);
+                }
+                this.assets = JSON.parse(localStorage.getItem('companyAssets') || '[]');
+            },
+
+            // --- AUTH METHODS ---
+            login() {
+                if(!this.authForm.username || !this.authForm.password) return this.showMessage("Please fill all fields.");
+                const hashedInput = btoa(this.authForm.password); // Encode to compare with hidden stored hash
+                const u = this.users.find(x => x.username === this.authForm.username && x.passwordHash === hashedInput);
+                
+                if(u) { 
+                    if(u.status === 'blocked') return this.showMessage("This account has been blocked by Admin.");
+                    this.currentUser = u; 
+                    sessionStorage.setItem('activeUserV2', JSON.stringify(u)); 
+                    this.authForm = { username: '', password: '', confirmPassword: '', email: '' }; // clear form
+                    this.startHeartbeat();
+                } else {
+                    this.showMessage("Invalid Username or Password.");
+                }
+            },
+            register() { 
+                if(!this.isValidEmail(this.authForm.email)) return this.showMessage("Provide a valid email (e.g. user@gmail.com).");
+                if(!this.isValidPassword(this.authForm.password)) return this.showMessage("Password must be 8+ characters, include a number and symbol.");
+                if(this.authForm.password !== this.authForm.confirmPassword) return this.showMessage("Passwords do not match.");
+                if(this.users.find(u => u.username === this.authForm.username)) return this.showMessage("Username already exists.");
+                
+                this.users.push({
+                    username: this.authForm.username,
+                    email: this.authForm.email,
+                    passwordHash: btoa(this.authForm.password),
+                    role: 'user', 
+                    status: 'active', 
+                    lastSeen: Date.now()
+                }); 
+                this.saveDbUsers(); 
+                this.authView = 'login'; 
+                this.authForm = { username: '', password: '', confirmPassword: '', email: '' };
+                this.showMessage("Account created successfully! Please login.", "success");
+            },
+            logout() { 
+                clearInterval(this.heartbeatTimer);
+                this.currentUser = null; 
+                sessionStorage.removeItem('activeUserV2'); 
+                this.activeTab = 'dashboard';
+            },
+
+            // --- FORGOT PASSWORD METHODS ---
+            verifyForgotIdentity() {
+                if(!this.forgotForm.username || !this.forgotForm.email) return this.showMessage("Enter username and email.");
+                const u = this.users.find(x => x.username === this.forgotForm.username && x.email === this.forgotForm.email);
+                if(u) {
+                    this.authView = 'reset';
+                    this.authMessage = '';
+                } else {
+                    this.showMessage("No account found matching this username and email.");
+                }
+            },
+            resetPassword() {
+                if(!this.isValidPassword(this.forgotForm.newPassword)) return this.showMessage("Password must be 8+ characters, include a number and symbol.");
+                if(this.forgotForm.newPassword !== this.forgotForm.confirmPassword) return this.showMessage("Passwords do not match.");
+                
+                const uIdx = this.users.findIndex(x => x.username === this.forgotForm.username);
+                if(uIdx !== -1) {
+                    this.users[uIdx].passwordHash = btoa(this.forgotForm.newPassword);
+                    this.saveDbUsers();
+                    this.authView = 'login';
+                    this.forgotForm = { username: '', email: '', newPassword: '', confirmPassword: '' };
+                    this.showMessage("Password successfully reset. You can now log in.", "success");
+                }
+            },
+
+            // --- PROFILE UPDATE METHODS ---
+            changePassword() {
+                if(!this.isValidPassword(this.profileUpdate.newPass)) return alert("Password must be 8+ characters, include a number and symbol.");
+                if(this.profileUpdate.newPass !== this.profileUpdate.confirmPass) return alert("Passwords do not match!");
+                
+                const uIdx = this.users.findIndex(u => u.username === this.currentUser.username);
+                if(uIdx !== -1) {
+                    this.users[uIdx].passwordHash = btoa(this.profileUpdate.newPass);
+                    this.saveDbUsers();
+                    this.currentUser.passwordHash = btoa(this.profileUpdate.newPass);
+                    sessionStorage.setItem('activeUserV2', JSON.stringify(this.currentUser));
+                    this.profileUpdate.newPass = '';
+                    this.profileUpdate.confirmPass = '';
+                    alert("Password updated successfully!");
+                }
+            },
+            changeEmail() {
+                if(!this.isValidEmail(this.profileUpdate.newEmail)) return alert("Please enter a valid email format.");
+                
+                const uIdx = this.users.findIndex(u => u.username === this.currentUser.username);
+                if(uIdx !== -1) {
+                    this.users[uIdx].email = this.profileUpdate.newEmail;
+                    this.saveDbUsers();
+                    this.currentUser.email = this.profileUpdate.newEmail;
+                    sessionStorage.setItem('activeUserV2', JSON.stringify(this.currentUser));
+                    this.profileUpdate.newEmail = '';
+                    alert("Email updated successfully!");
+                }
+            },
+
+            // --- CORE METHODS ---
+            startHeartbeat() {
+                this.updateHeartbeat();
+                this.heartbeatTimer = setInterval(() => {
+                    this.updateHeartbeat();
+                }, 5000);
+            },
+            updateHeartbeat() {
+                if(!this.currentUser) return;
+                this.loadData(); // Re-sync local storage updates
+                const uIdx = this.users.findIndex(x => x.username === this.currentUser.username);
+                if(uIdx !== -1) {
+                    this.users[uIdx].lastSeen = Date.now();
+                    this.saveDbUsers();
+                }
+            },
+            isOnline(user) {
+                if(!user.lastSeen) return false;
+                return (Date.now() - user.lastSeen) < 15000;
+            },
+            
+            // --- ASSET METHODS ---
+            addSingleDevice() {
+                if(!this.singleForm.tag || !this.singleForm.serial) return alert("Tag and Serial are required");
+                this.assets.push({
+                    ...this.singleForm,
+                    status: 'Received for Repair',
+                    repairs: [],
+                    repairCount: 0
+                });
+                this.saveDbAssets();
+                this.singleForm = { tag: '', type: '', brand: '', model: '', serial: '', purchaseDate: '' };
+                alert("Device Added Successfully");
+                this.activeTab = 'inventory';
+            },
+            updateStatus(asset) {
+                if(asset.status === 'Ready') {
+                    asset.repairCount = (asset.repairCount || 0) + 1;
+                }
+                this.saveDbAssets();
+            },
+            toggleUserBlock(username) {
+                const u = this.users.find(x => x.username === username);
+                if(u) {
+                    u.status = u.status === 'blocked' ? 'active' : 'blocked';
+                    this.saveDbUsers();
+                }
+            },
+            calculateTotalRepairCost(asset) {
+                if(!asset.repairs) return 0;
+                return asset.repairs.reduce((sum, item) => sum + (parseFloat(item.cost) || 0), 0);
+            },
+            calculateAge(dateStr) {
+                if (!dateStr || dateStr === 'N/A') return "Unknown";
+                const birth = new Date(dateStr);
+                const now = new Date();
+                let years = now.getFullYear() - birth.getFullYear();
+                let months = now.getMonth() - birth.getMonth();
+                if (months < 0) { years--; months += 12; }
+                return `${years}Y, ${months}M`;
+            },
+            handleFileUpload(event) {
+                const file = event.target.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const rows = e.target.result.split('\n');
+                    rows.forEach((row, index) => {
+                        if(index === 0 || !row.trim()) return;
+                        const cols = row.split(',').map(c => c.trim());
+                        if(cols.length >= 5) {
+                            this.assets.push({ 
+                                tag: cols[0], type: cols[1], brand: cols[2], model: cols[3], serial: cols[4], purchaseDate: cols[5], 
+                                status: 'Received for Repair', repairs: [], repairCount: 0 
+                            });
+                        }
+                    });
+                    this.saveDbAssets();
+                    this.activeTab = 'inventory';
+                };
+                reader.readAsText(file);
+            },
+            addRepair(tag) {
+                const a = this.assets.find(x => x.tag === tag);
+                const d = this.draftRepairs[tag];
+                if(a && d && d.problem) {
+                    if(!a.repairs) a.repairs = [];
+                    a.repairs.push({...d, date: new Date().toLocaleDateString()});
+                    this.draftRepairs[tag] = {};
+                    this.saveDbAssets();
+                }
+            },
+            getDraft(tag) { if(!this.draftRepairs[tag]) this.draftRepairs[tag] = {problem:'', cost:0}; return this.draftRepairs[tag]; },
+            statusColor(s) { return s === 'Ready' ? 'bg-green-100 text-green-700' : (s === 'Irreparable' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'); },
+            tabClass(t) { return this.activeTab === t ? 'text-blue-400 font-black border-b-2 border-blue-400 pb-1' : 'text-gray-400 hover:text-white transition'; },
+            deleteAsset(tag) { if(confirm('Delete?')) { this.assets = this.assets.filter(a => a.tag !== tag); this.saveDbAssets(); } },
+            deleteUser(name) { if(confirm(`Permanently delete user ${name}?`)) { this.users = this.users.filter(u => u.username !== name); this.saveDbUsers(); } },
+            saveDbAssets() { localStorage.setItem('companyAssets', JSON.stringify(this.assets)); },
+            saveDbUsers() { localStorage.setItem('assetCareUsers_v2', JSON.stringify(this.users)); }
+        }
+    }).mount('#app')
+</script>
+</body>
+</html>
