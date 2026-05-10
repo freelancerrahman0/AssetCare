@@ -7,20 +7,32 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body class="bg-slate-100 font-sans text-slate-800">
 
 <div id="app" class="min-h-screen flex flex-col">
     
-    <!-- ================= AUTHENTICATION ================= -->
-    <div v-if="!currentUser" class="min-h-screen flex items-center justify-center bg-slate-900 p-4">
+    <div v-if="isWaitingApproval" class="min-h-screen bg-white flex flex-col items-center justify-center p-6 text-center">
+        <div class="max-w-md">
+            <i class="fas fa-clock text-6xl text-orange-400 mb-6 animate-pulse"></i>
+            <h1 class="text-3xl font-bold text-slate-900 mb-4">Waiting for Admin Approval</h1>
+            <p class="text-slate-600 mb-8">Your account has been created successfully, but a system administrator needs to verify your identity before you can gain access. Please wait for a moment.</p>
+            <button @click="isWaitingApproval = false; authView = 'login'" class="bg-slate-900 text-white px-8 py-3 rounded-lg font-bold hover:bg-slate-800 transition">
+                Back to Login
+            </button>
+        </div>
+    </div>
+
+    <div v-else-if="!currentUser" class="min-h-screen flex items-center justify-center bg-slate-900 p-4">
         <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
             <div class="text-center mb-6">
                 <i class="fas fa-shield-alt text-4xl text-blue-600 mb-3"></i>
                 <h1 class="text-2xl font-bold text-slate-800">AssetCare Login</h1>
             </div>
 
-            <!-- Login View -->
             <div v-if="authView === 'login'" class="space-y-4">
                 <input v-model="authForm.username" type="text" placeholder="Username" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
                 <input v-model="authForm.password" type="password" placeholder="Password" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
@@ -31,17 +43,15 @@
                 </div>
             </div>
 
-            <!-- Register View -->
             <div v-if="authView === 'register'" class="space-y-4">
-                <input v-model="authForm.email" type="email" placeholder="Email Address (e.g., user@domain.com)" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <input v-model="authForm.email" type="email" placeholder="Email Address" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
                 <input v-model="authForm.username" type="text" placeholder="Choose Username" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
-                <input v-model="authForm.password" type="password" placeholder="Password (Min 8 chars, 1 number, 1 symbol)" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <input v-model="authForm.password" type="password" placeholder="Password" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
                 <input v-model="authForm.confirmPassword" type="password" placeholder="Confirm Password" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
                 <button @click="register" class="w-full bg-green-600 text-white font-bold py-3 rounded hover:bg-green-700 transition">Create Account</button>
                 <button @click="authView = 'login'" class="w-full text-sm text-gray-500 mt-2 hover:underline">Back to Login</button>
             </div>
 
-            <!-- Forgot Password View -->
             <div v-if="authView === 'forgot'" class="space-y-4">
                 <p class="text-sm text-gray-600 mb-2">Enter your credentials to verify your identity.</p>
                 <input v-model="forgotForm.username" type="text" placeholder="Your Username" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
@@ -50,23 +60,20 @@
                 <button @click="authView = 'login'" class="w-full text-sm text-gray-500 mt-2 hover:underline">Back to Login</button>
             </div>
 
-            <!-- Reset Password View -->
             <div v-if="authView === 'reset'" class="space-y-4">
                 <p class="text-sm text-green-600 font-bold mb-2">Identity verified. Enter your new password.</p>
-                <input v-model="forgotForm.newPassword" type="password" placeholder="New Password (Min 8 chars, 1 number, 1 symbol)" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
+                <input v-model="forgotForm.newPassword" type="password" placeholder="New Password" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
                 <input v-model="forgotForm.confirmPassword" type="password" placeholder="Confirm New Password" class="w-full border p-3 rounded outline-none focus:ring-2 focus:ring-blue-500">
                 <button @click="resetPassword" class="w-full bg-blue-600 text-white font-bold py-3 rounded hover:bg-blue-700 transition">Save New Password</button>
                 <button @click="authView = 'login'" class="w-full text-sm text-gray-500 mt-2 hover:underline">Cancel</button>
             </div>
 
-            <!-- System Messages -->
             <div v-if="authMessage" class="mt-4 p-3 text-sm text-center rounded font-bold" :class="messageColor">
                 {{ authMessage }}
             </div>
         </div>
     </div>
 
-    <!-- ================= MAIN APP ================= -->
     <div v-else class="flex-grow flex flex-col">
         <nav class="bg-slate-900 text-white p-4 shadow-lg sticky top-0 z-50">
             <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
@@ -79,8 +86,13 @@
                     <button @click="activeTab = 'inventory'" :class="tabClass('inventory')">Inventory</button>
                     <button @click="activeTab = 'add'" :class="tabClass('add')">Add Device</button>
                     <button @click="activeTab = 'profile'" :class="tabClass('profile')">My Profile</button>
-                    <button v-if="currentUser.role === 'admin'" @click="activeTab = 'bulk'" :class="tabClass('bulk')" class="text-green-400">Bulk Import</button>
-                    <button v-if="currentUser.role === 'admin'" @click="activeTab = 'users'" :class="tabClass('users')" class="text-amber-400">Users</button>
+                    
+                    <button v-if="['admin', 'moderator'].includes(currentUser.role)" @click="activeTab = 'adminPanel'" :class="tabClass('adminPanel')" class="text-purple-400 flex items-center gap-2">
+                        Admin Panel
+                        <span v-if="pendingUsers.length > 0 && currentUser.role === 'admin'" class="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full animate-bounce">{{ pendingUsers.length }}</span>
+                    </button>
+                    <button v-if="['admin', 'moderator'].includes(currentUser.role)" @click="activeTab = 'bulk'" :class="tabClass('bulk')" class="text-green-400">Bulk</button>
+                    
                     <button @click="logout" class="text-red-400 hover:text-red-200 ml-4"><i class="fas fa-power-off"></i></button>
                 </div>
             </div>
@@ -88,50 +100,186 @@
 
         <main class="flex-grow p-4 md:p-6 max-w-7xl mx-auto w-full">
             
-            <!-- TAB: DASHBOARD -->
-            <div v-if="activeTab === 'dashboard'" class="space-y-6">
-                <!-- Top Overview -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="bg-white p-6 rounded-xl shadow border-t-4 border-blue-500">
-                        <p class="text-gray-500 text-xs font-bold uppercase">Total Assets registered</p>
-                        <p class="text-4xl font-black">{{ assets.length }}</p>
+            <div v-if="activeTab === 'adminPanel' && ['admin', 'moderator'].includes(currentUser.role)" class="space-y-6">
+                
+                <div v-if="currentUser.role === 'admin' && pendingUsers.length > 0" class="bg-white p-8 rounded-xl shadow-lg border-2 border-orange-200">
+                    <div class="flex items-center justify-between mb-4 border-b pb-4">
+                        <h2 class="text-xl font-bold flex items-center gap-2 text-orange-600">
+                            <i class="fas fa-user-plus"></i> Pending Approval Requests
+                        </h2>
+                        <span class="bg-orange-100 text-orange-700 text-xs font-black px-3 py-1 rounded-full uppercase">Action Required</span>
                     </div>
-                    <div class="bg-slate-800 text-white p-6 rounded-xl shadow border-t-4 border-blue-400">
-                        <p class="text-blue-300 text-xs font-bold uppercase">On the Repair Cell (Current)</p>
-                        <p class="text-4xl font-black">{{ inRepairCount }}</p>
-                    </div>
-                    <div class="bg-white p-6 rounded-xl shadow border-t-4 border-emerald-500">
-                        <p class="text-gray-500 text-xs font-bold uppercase">All-Time Repaired</p>
-                        <p class="text-4xl font-black">{{ allTimeRepairedCount }}</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="bg-slate-50 text-[10px] font-black uppercase text-slate-500">
+                                    <th class="p-4">Requested Date/Time</th>
+                                    <th class="p-4">Username</th>
+                                    <th class="p-4">Email Address</th>
+                                    <th class="p-4 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="u in pendingUsers" :key="u.username" class="border-b hover:bg-slate-50">
+                                    <td class="p-4 text-xs font-mono text-slate-500">{{ u.requestDate || 'N/A' }}</td>
+                                    <td class="p-4 font-bold">{{ u.username }}</td>
+                                    <td class="p-4 text-sm">{{ u.email }}</td>
+                                    <td class="p-4 flex justify-center gap-3">
+                                        <button @click="approveUser(u.username)" class="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded hover:bg-green-700 transition">
+                                            <i class="fas fa-check mr-1"></i> Accept
+                                        </button>
+                                        <button @click="rejectUser(u.username)" class="bg-red-500 text-white text-xs font-bold px-4 py-2 rounded hover:bg-red-600 transition">
+                                            <i class="fas fa-times mr-1"></i> Reject
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
 
-                <!-- Detailed Status Grid -->
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-yellow-500">
-                        <p class="text-gray-400 text-[10px] font-black uppercase">Pending</p>
-                        <p class="text-2xl font-bold text-slate-700">{{ statusCounts['Pending'] || 0 }}</p>
+                <div class="bg-white p-8 rounded-xl shadow border">
+                    <h2 class="text-xl font-bold mb-4 flex items-center gap-2 border-b pb-2">
+                        <i class="fas fa-chart-line text-purple-600"></i> Reporting & Data Export
+                    </h2>
+                    <p class="text-sm text-gray-500 mb-6">Export full system inventory data for audits and external reporting.</p>
+                    <div class="flex flex-wrap gap-4">
+                        <button @click="exportCSV" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded shadow flex items-center gap-2 transition">
+                            <i class="fas fa-file-excel"></i> Export to Excel (CSV)
+                        </button>
+                        <button @click="exportPDF" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded shadow flex items-center gap-2 transition">
+                            <i class="fas fa-file-pdf"></i> Export to PDF
+                        </button>
                     </div>
-                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-sky-400">
-                        <p class="text-gray-400 text-[10px] font-black uppercase">On Quick Repair</p>
-                        <p class="text-2xl font-bold text-slate-700">{{ statusCounts['Quick Repair Stage'] || 0 }}</p>
+                </div>
+
+                <div v-if="currentUser.role === 'admin'" class="bg-white p-8 rounded-xl shadow border">
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h2 class="text-xl font-bold flex items-center gap-2">
+                            <i class="fas fa-users-cog text-blue-600"></i> User & Role Management
+                        </h2>
+                        <span class="text-[10px] font-bold text-gray-400 bg-slate-100 px-3 py-1 rounded-full italic">Live monitoring enabled</span>
                     </div>
-                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-orange-500">
-                        <p class="text-gray-400 text-[10px] font-black uppercase">Complex Issues</p>
-                        <p class="text-2xl font-bold text-slate-700">{{ statusCounts['Complex Stage'] || 0 }}</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-green-500">
-                        <p class="text-gray-400 text-[10px] font-black uppercase">Ready</p>
-                        <p class="text-2xl font-bold text-slate-700">{{ statusCounts['Ready'] || 0 }}</p>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-red-500">
-                        <p class="text-gray-400 text-[10px] font-black uppercase">Irreparable</p>
-                        <p class="text-2xl font-bold text-slate-700">{{ statusCounts['Irreparable'] || 0 }}</p>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left mt-4">
+                            <thead>
+                                <tr class="bg-slate-100 text-[10px] font-black uppercase text-slate-600">
+                                    <th class="p-4">Username</th>
+                                    <th class="p-4">Status</th>
+                                    <th class="p-4">Email</th>
+                                    <th class="p-4">Account</th>
+                                    <th class="p-4">Role</th>
+                                    <th class="p-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="u in activeUsers" :key="u.username" class="border-b">
+                                    <td class="p-4 font-bold">{{ u.username }}</td>
+                                    <td class="p-4">
+                                        <div class="flex items-center gap-2">
+                                            <div :class="isOnline(u) ? 'bg-green-500 animate-pulse' : 'bg-gray-300'" class="w-2 h-2 rounded-full"></div>
+                                            <span :class="isOnline(u) ? 'text-green-600 font-bold' : 'text-gray-400'" class="text-xs uppercase">
+                                                {{ isOnline(u) ? 'Online' : 'Offline' }}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="p-4 text-slate-500">{{ u.email || 'N/A' }}</td>
+                                    <td class="p-4">
+                                        <span v-if="u.status === 'blocked'" class="text-red-600 text-[10px] font-black uppercase bg-red-50 px-2 py-1 rounded">Blocked</span>
+                                        <span v-else class="text-green-600 text-[10px] font-black uppercase bg-green-50 px-2 py-1 rounded">Active</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <select v-if="u.username !== currentUser.username && u.role !== 'admin'" @change="changeUserRole(u.username, $event.target.value)" :value="u.role" class="p-2 border rounded text-xs font-bold bg-white">
+                                            <option value="user">Standard User</option>
+                                            <option value="moderator">Moderator</option>
+                                        </select>
+                                        <span v-else :class="u.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'" class="text-[10px] font-black uppercase px-2 py-1 rounded">
+                                            {{ u.role }}
+                                        </span>
+                                    </td>
+                                    <td class="p-4 flex gap-2">
+                                        <template v-if="u.username !== currentUser.username && u.role !== 'admin'">
+                                            <button @click="toggleUserBlock(u.username)" 
+                                                    class="text-xs font-bold px-3 py-1 rounded border transition"
+                                                    :class="u.status === 'blocked' ? 'bg-green-600 text-white' : 'bg-orange-500 text-white'">
+                                                {{ u.status === 'blocked' ? 'Unblock' : 'Block' }}
+                                            </button>
+                                            <button @click="deleteUser(u.username)" class="text-red-500 text-xs font-bold hover:underline">Delete</button>
+                                        </template>
+                                        <span v-else class="text-blue-500 text-[10px] font-black uppercase italic">Current Admin</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
-            <!-- TAB: INVENTORY -->
+            <div v-if="activeTab === 'dashboard'" class="space-y-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-800">Operational Overview</h2>
+                        <p class="text-slate-500 text-sm">Real-time statistics and asset health monitoring.</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-black uppercase text-slate-400">System Time</p>
+                        <p class="text-sm font-mono font-bold">{{ new Date().toLocaleDateString() }}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-gradient-to-br from-blue-600 to-blue-800 p-6 rounded-2xl shadow-xl text-white">
+                        <div class="flex justify-between items-start mb-4">
+                            <i class="fas fa-boxes text-2xl opacity-50"></i>
+                            <span class="text-[10px] bg-white/20 px-2 py-1 rounded font-black uppercase">Inventory</span>
+                        </div>
+                        <p class="text-4xl font-black mb-1">{{ assets.length }}</p>
+                        <p class="text-xs font-bold uppercase opacity-80">Total Registered Assets</p>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-amber-500 to-orange-600 p-6 rounded-2xl shadow-xl text-white">
+                        <div class="flex justify-between items-start mb-4">
+                            <i class="fas fa-tools text-2xl opacity-50"></i>
+                            <span class="text-[10px] bg-white/20 px-2 py-1 rounded font-black uppercase">Live</span>
+                        </div>
+                        <p class="text-4xl font-black mb-1">{{ inRepairCount }}</p>
+                        <p class="text-xs font-bold uppercase opacity-80">Currently in Repair</p>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-emerald-500 to-teal-700 p-6 rounded-2xl shadow-xl text-white">
+                        <div class="flex justify-between items-start mb-4">
+                            <i class="fas fa-history text-2xl opacity-50"></i>
+                            <span class="text-[10px] bg-white/20 px-2 py-1 rounded font-black uppercase">Success</span>
+                        </div>
+                        <p class="text-4xl font-black mb-1">{{ allTimeRepairedCount }}</p>
+                        <p class="text-xs font-bold uppercase opacity-80">All-Time Repair Actions</p>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-purple-600 to-indigo-800 p-6 rounded-2xl shadow-xl text-white">
+                        <div class="flex justify-between items-start mb-4">
+                            <i class="fas fa-user-check text-2xl opacity-50"></i>
+                            <span class="text-[10px] bg-white/20 px-2 py-1 rounded font-black uppercase">Users</span>
+                        </div>
+                        <p class="text-4xl font-black mb-1">{{ totalActiveUserCount }}</p>
+                        <p class="text-xs font-bold uppercase opacity-80">Total Active Users</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+                    <h3 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-6">Status Breakdown</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
+                        <div v-for="st in ['Pending', 'Quick Repair Stage', 'Complex Stage', 'Ready', 'Irreparable']" :key="st" class="relative">
+                            <p class="text-[10px] font-black uppercase text-slate-400 mb-1">{{ st }}</p>
+                            <p class="text-2xl font-black text-slate-800">{{ statusCounts[st] || 0 }}</p>
+                            <div class="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div class="h-full" :class="statusBg(st)" :style="{ width: ( (statusCounts[st] || 0) / (assets.length || 1) * 100) + '%' }"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div v-if="activeTab === 'inventory'" class="space-y-6">
                 <div class="bg-white p-4 rounded-xl shadow border grid grid-cols-1 md:grid-cols-2 gap-4 sticky top-20 z-40">
                     <div class="flex items-center gap-3 bg-slate-50 p-2 rounded border">
@@ -192,7 +340,6 @@
                 </div>
             </div>
 
-            <!-- TAB: ADD SINGLE DEVICE -->
             <div v-if="activeTab === 'add'" class="max-w-xl mx-auto bg-white p-8 rounded-xl shadow border">
                 <h2 class="text-xl font-bold mb-6 flex items-center gap-2 text-blue-600">
                     <i class="fas fa-plus-circle"></i> Register New Device
@@ -230,8 +377,7 @@
                 </div>
             </div>
 
-            <!-- BULK IMPORT TAB -->
-            <div v-if="activeTab === 'bulk' && currentUser.role === 'admin'" class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow border">
+            <div v-if="activeTab === 'bulk' && ['admin', 'moderator'].includes(currentUser.role)" class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow border">
                 <div class="text-center mb-6"><i class="fas fa-file-csv text-5xl text-green-500 mb-4"></i><h2 class="text-2xl font-bold">Bulk Asset Upload</h2></div>
                 <div class="bg-slate-50 p-4 rounded-lg border-2 border-dashed border-slate-300 mb-6">
                     <p class="text-[11px] font-black text-slate-600 uppercase mb-2">Sequence: Tag, Type, Brand, Model, Serial, Date</p>
@@ -239,9 +385,7 @@
                 </div>
             </div>
 
-            <!-- PROFILE TAB -->
             <div v-if="activeTab === 'profile'" class="max-w-md mx-auto space-y-6">
-                <!-- Change Password Box -->
                 <div class="bg-white p-8 rounded-xl shadow border">
                     <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
                         <i class="fas fa-key text-blue-600"></i> Change Password
@@ -249,7 +393,7 @@
                     <div class="space-y-4">
                         <div>
                             <label class="text-[10px] font-black text-gray-400 uppercase">New Password</label>
-                            <input v-model="profileUpdate.newPass" type="password" placeholder="Min 8 chars, 1 number, 1 symbol" class="w-full border p-3 rounded mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
+                            <input v-model="profileUpdate.newPass" type="password" placeholder="Minimum 8 characters" class="w-full border p-3 rounded mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
                         <div>
                             <label class="text-[10px] font-black text-gray-400 uppercase">Confirm New Password</label>
@@ -261,7 +405,6 @@
                     </div>
                 </div>
 
-                <!-- Change Email Box -->
                 <div class="bg-white p-8 rounded-xl shadow border">
                     <h2 class="text-xl font-bold mb-6 flex items-center gap-2">
                         <i class="fas fa-envelope text-blue-600"></i> Change Email Address
@@ -272,60 +415,14 @@
                             <label class="text-[10px] font-black text-gray-400 uppercase">New Email Address</label>
                             <input v-model="profileUpdate.newEmail" type="email" placeholder="new@domain.com" class="w-full border p-3 rounded mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
                         </div>
+                        <div>
+                            <label class="text-[10px] font-black text-gray-400 uppercase">Confirm New Email</label>
+                            <input v-model="profileUpdate.confirmEmail" type="email" placeholder="confirm@domain.com" class="w-full border p-3 rounded mt-1 focus:ring-2 focus:ring-blue-500 outline-none">
+                        </div>
                         <button @click="changeEmail" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg shadow hover:bg-slate-900 transition">
                             Update Email
                         </button>
                     </div>
-                </div>
-            </div>
-
-            <!-- USERS TAB -->
-            <div v-if="activeTab === 'users' && currentUser.role === 'admin'" class="bg-white p-6 rounded-xl shadow border">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold">System Users</h2>
-                    <span class="text-[10px] font-bold text-gray-400 bg-slate-100 px-3 py-1 rounded-full italic">Live monitoring enabled</span>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead>
-                            <tr class="bg-slate-100 text-[10px] font-black uppercase text-slate-600">
-                                <th class="p-4">Username</th>
-                                <th class="p-4">Status</th>
-                                <th class="p-4">Email</th>
-                                <th class="p-4">Account Status</th>
-                                <th class="p-4">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="u in users" :key="u.username" class="border-b">
-                                <td class="p-4 font-bold">{{ u.username }}</td>
-                                <td class="p-4">
-                                    <div class="flex items-center gap-2">
-                                        <div :class="isOnline(u) ? 'bg-green-500 animate-pulse' : 'bg-gray-300'" class="w-2 h-2 rounded-full"></div>
-                                        <span :class="isOnline(u) ? 'text-green-600 font-bold' : 'text-gray-400'" class="text-xs uppercase">
-                                            {{ isOnline(u) ? 'Online' : 'Offline' }}
-                                        </span>
-                                    </div>
-                                </td>
-                                <td class="p-4 text-slate-500">{{ u.email || 'N/A' }}</td>
-                                <td class="p-4">
-                                    <span v-if="u.status === 'blocked'" class="text-red-600 text-[10px] font-black uppercase bg-red-50 px-2 py-1 rounded">Blocked</span>
-                                    <span v-else class="text-green-600 text-[10px] font-black uppercase bg-green-50 px-2 py-1 rounded">Active</span>
-                                </td>
-                                <td class="p-4 flex gap-2">
-                                    <template v-if="u.username !== currentUser.username">
-                                        <button @click="toggleUserBlock(u.username)" 
-                                                class="text-xs font-bold px-3 py-1 rounded border transition"
-                                                :class="u.status === 'blocked' ? 'bg-green-600 text-white' : 'bg-orange-500 text-white'">
-                                            {{ u.status === 'blocked' ? 'Unblock' : 'Block' }}
-                                        </button>
-                                        <button @click="deleteUser(u.username)" class="text-red-500 text-xs font-bold hover:underline">Delete</button>
-                                    </template>
-                                    <span v-else class="text-blue-500 text-[10px] font-black uppercase italic">Current Admin</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
                 </div>
             </div>
 
@@ -341,10 +438,11 @@
                 currentUser: null, 
                 authView: 'login', 
                 authMessage: '',
+                isWaitingApproval: false,
                 messageColor: 'bg-red-100 text-red-700',
                 authForm: { username: '', password: '', confirmPassword: '', email: '' },
                 forgotForm: { username: '', email: '', newPassword: '', confirmPassword: '' },
-                profileUpdate: { newPass: '', confirmPass: '', newEmail: '' },
+                profileUpdate: { newPass: '', confirmPass: '', newEmail: '', confirmEmail: '' },
                 singleForm: { tag: '', type: '', brand: '', model: '', serial: '', purchaseDate: '' },
                 users: [], activeTab: 'dashboard', searchQuery: '', statusFilter: '',
                 assets: [], draftRepairs: {},
@@ -364,6 +462,9 @@
             });
         },
         computed: {
+            activeUsers() { return this.users.filter(u => u.status !== 'pending'); },
+            pendingUsers() { return this.users.filter(u => u.status === 'pending'); },
+            totalActiveUserCount() { return this.activeUsers.length; },
             filteredAssets() {
                 let list = this.assets;
                 if(this.searchQuery.trim()) {
@@ -382,236 +483,170 @@
             }
         },
         methods: {
-            // HELPER: Validate Email Formats
-            isValidEmail(email) {
-                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                return re.test(email);
-            },
-            // HELPER: Validate Password (Min 8, 1 Letter, 1 Number, 1 Symbol)
-            isValidPassword(password) {
-                const re = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
-                return re.test(password);
-            },
-            showMessage(msg, type = 'error') {
-                this.authMessage = msg;
-                this.messageColor = type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
-                setTimeout(() => { this.authMessage = ''; }, 5000);
-            },
-
-            loadData() {
-                // Changed storage key to "assetCareUsers_v2" to wipe out old logs and enforce the new system
-                let storedUsers = localStorage.getItem('assetCareUsers_v2');
-                if (!storedUsers) {
-                    // Hidden/Obfuscated Default Admin configuration (btoa encodes it to base64)
-                    const defaultAdmin = [{
-                        username: "admin",
-                        passwordHash: btoa("SuperAdmin#2026"), 
-                        role: "admin",
-                        status: "active",
-                        email: "admin@assetcare.com",
-                        lastSeen: 0
-                    }];
-                    localStorage.setItem('assetCareUsers_v2', JSON.stringify(defaultAdmin));
-                    this.users = defaultAdmin;
-                } else {
-                    this.users = JSON.parse(storedUsers);
-                }
-                this.assets = JSON.parse(localStorage.getItem('companyAssets') || '[]');
-            },
-
-            // --- AUTH METHODS ---
-            login() {
-                if(!this.authForm.username || !this.authForm.password) return this.showMessage("Please fill all fields.");
-                const hashedInput = btoa(this.authForm.password); // Encode to compare with hidden stored hash
-                const u = this.users.find(x => x.username === this.authForm.username && x.passwordHash === hashedInput);
-                
-                if(u) { 
-                    if(u.status === 'blocked') return this.showMessage("This account has been blocked by Admin.");
-                    this.currentUser = u; 
-                    sessionStorage.setItem('activeUserV2', JSON.stringify(u)); 
-                    this.authForm = { username: '', password: '', confirmPassword: '', email: '' }; // clear form
-                    this.startHeartbeat();
-                } else {
-                    this.showMessage("Invalid Username or Password.");
-                }
-            },
-            register() { 
-                if(!this.isValidEmail(this.authForm.email)) return this.showMessage("Provide a valid email (e.g. user@gmail.com).");
-                if(!this.isValidPassword(this.authForm.password)) return this.showMessage("Password must be 8+ characters, include a number and symbol.");
-                if(this.authForm.password !== this.authForm.confirmPassword) return this.showMessage("Passwords do not match.");
-                if(this.users.find(u => u.username === this.authForm.username)) return this.showMessage("Username already exists.");
-                
-                this.users.push({
-                    username: this.authForm.username,
-                    email: this.authForm.email,
-                    passwordHash: btoa(this.authForm.password),
-                    role: 'user', 
-                    status: 'active', 
-                    lastSeen: Date.now()
-                }); 
-                this.saveDbUsers(); 
-                this.authView = 'login'; 
-                this.authForm = { username: '', password: '', confirmPassword: '', email: '' };
-                this.showMessage("Account created successfully! Please login.", "success");
-            },
-            logout() { 
-                clearInterval(this.heartbeatTimer);
-                this.currentUser = null; 
-                sessionStorage.removeItem('activeUserV2'); 
-                this.activeTab = 'dashboard';
-            },
-
-            // --- FORGOT PASSWORD METHODS ---
-            verifyForgotIdentity() {
-                if(!this.forgotForm.username || !this.forgotForm.email) return this.showMessage("Enter username and email.");
-                const u = this.users.find(x => x.username === this.forgotForm.username && x.email === this.forgotForm.email);
-                if(u) {
-                    this.authView = 'reset';
-                    this.authMessage = '';
-                } else {
-                    this.showMessage("No account found matching this username and email.");
-                }
-            },
-            resetPassword() {
-                if(!this.isValidPassword(this.forgotForm.newPassword)) return this.showMessage("Password must be 8+ characters, include a number and symbol.");
-                if(this.forgotForm.newPassword !== this.forgotForm.confirmPassword) return this.showMessage("Passwords do not match.");
-                
-                const uIdx = this.users.findIndex(x => x.username === this.forgotForm.username);
-                if(uIdx !== -1) {
-                    this.users[uIdx].passwordHash = btoa(this.forgotForm.newPassword);
-                    this.saveDbUsers();
-                    this.authView = 'login';
-                    this.forgotForm = { username: '', email: '', newPassword: '', confirmPassword: '' };
-                    this.showMessage("Password successfully reset. You can now log in.", "success");
-                }
-            },
-
-            // --- PROFILE UPDATE METHODS ---
+            // --- MY PROFILE METHODS ---
             changePassword() {
-                if(!this.isValidPassword(this.profileUpdate.newPass)) return alert("Password must be 8+ characters, include a number and symbol.");
-                if(this.profileUpdate.newPass !== this.profileUpdate.confirmPass) return alert("Passwords do not match!");
+                const { newPass, confirmPass } = this.profileUpdate;
+                if (!newPass || newPass.length < 8) {
+                    return alert("Password must be at least 8 characters long.");
+                }
+                if (newPass !== confirmPass) {
+                    return alert("Passwords do not match.");
+                }
                 
-                const uIdx = this.users.findIndex(u => u.username === this.currentUser.username);
-                if(uIdx !== -1) {
-                    this.users[uIdx].passwordHash = btoa(this.profileUpdate.newPass);
+                const userIdx = this.users.findIndex(u => u.username === this.currentUser.username);
+                if (userIdx !== -1) {
+                    const hash = btoa(newPass);
+                    this.users[userIdx].passwordHash = hash;
                     this.saveDbUsers();
-                    this.currentUser.passwordHash = btoa(this.profileUpdate.newPass);
+                    
+                    // Update current session
+                    this.currentUser.passwordHash = hash;
                     sessionStorage.setItem('activeUserV2', JSON.stringify(this.currentUser));
+                    
                     this.profileUpdate.newPass = '';
                     this.profileUpdate.confirmPass = '';
-                    alert("Password updated successfully!");
+                    alert("Password updated successfully across all systems!");
                 }
             },
             changeEmail() {
-                if(!this.isValidEmail(this.profileUpdate.newEmail)) return alert("Please enter a valid email format.");
-                
-                const uIdx = this.users.findIndex(u => u.username === this.currentUser.username);
-                if(uIdx !== -1) {
-                    this.users[uIdx].email = this.profileUpdate.newEmail;
+                const { newEmail, confirmEmail } = this.profileUpdate;
+                if (!newEmail || !this.isValidEmail(newEmail)) {
+                    return alert("Please enter a valid email address (e.g. name@organization.com).");
+                }
+                if (newEmail !== confirmEmail) {
+                    return alert("Emails do not match.");
+                }
+
+                const userIdx = this.users.findIndex(u => u.username === this.currentUser.username);
+                if (userIdx !== -1) {
+                    this.users[userIdx].email = newEmail;
                     this.saveDbUsers();
-                    this.currentUser.email = this.profileUpdate.newEmail;
+                    
+                    // Update current session
+                    this.currentUser.email = newEmail;
                     sessionStorage.setItem('activeUserV2', JSON.stringify(this.currentUser));
+                    
                     this.profileUpdate.newEmail = '';
-                    alert("Email updated successfully!");
+                    this.profileUpdate.confirmEmail = '';
+                    alert("Email updated successfully across all systems!");
                 }
             },
 
-            // --- CORE METHODS ---
-            startHeartbeat() {
-                this.updateHeartbeat();
-                this.heartbeatTimer = setInterval(() => {
-                    this.updateHeartbeat();
-                }, 5000);
-            },
-            updateHeartbeat() {
-                if(!this.currentUser) return;
-                this.loadData(); // Re-sync local storage updates
-                const uIdx = this.users.findIndex(x => x.username === this.currentUser.username);
-                if(uIdx !== -1) {
-                    this.users[uIdx].lastSeen = Date.now();
-                    this.saveDbUsers();
-                }
-            },
-            isOnline(user) {
-                if(!user.lastSeen) return false;
-                return (Date.now() - user.lastSeen) < 15000;
-            },
-            
-            // --- ASSET METHODS ---
-            addSingleDevice() {
-                if(!this.singleForm.tag || !this.singleForm.serial) return alert("Tag and Serial are required");
-                this.assets.push({
-                    ...this.singleForm,
-                    status: 'Received for Repair',
-                    repairs: [],
-                    repairCount: 0
-                });
-                this.saveDbAssets();
-                this.singleForm = { tag: '', type: '', brand: '', model: '', serial: '', purchaseDate: '' };
-                alert("Device Added Successfully");
-                this.activeTab = 'inventory';
-            },
-            updateStatus(asset) {
-                if(asset.status === 'Ready') {
-                    asset.repairCount = (asset.repairCount || 0) + 1;
-                }
-                this.saveDbAssets();
-            },
-            toggleUserBlock(username) {
+            // --- APPROVAL METHODS ---
+            approveUser(username) {
                 const u = this.users.find(x => x.username === username);
                 if(u) {
-                    u.status = u.status === 'blocked' ? 'active' : 'blocked';
+                    u.status = 'active';
+                    this.saveDbUsers();
+                    alert(`Access granted to ${username}. They can now login.`);
+                }
+            },
+            rejectUser(username) {
+                if(confirm(`Are you sure you want to REJECT and DELETE the request from ${username}?`)) {
+                    this.users = this.users.filter(x => x.username !== username);
                     this.saveDbUsers();
                 }
             },
-            calculateTotalRepairCost(asset) {
-                if(!asset.repairs) return 0;
-                return asset.repairs.reduce((sum, item) => sum + (parseFloat(item.cost) || 0), 0);
+
+            // --- DASHBOARD HELPERS ---
+            statusBg(st) {
+                const map = {
+                    'Pending': 'bg-yellow-500', 'Quick Repair Stage': 'bg-sky-400', 'Complex Stage': 'bg-orange-500', 'Ready': 'bg-green-500', 'Irreparable': 'bg-red-500'
+                };
+                return map[st] || 'bg-slate-300';
             },
-            calculateAge(dateStr) {
-                if (!dateStr || dateStr === 'N/A') return "Unknown";
-                const birth = new Date(dateStr);
-                const now = new Date();
-                let years = now.getFullYear() - birth.getFullYear();
-                let months = now.getMonth() - birth.getMonth();
-                if (months < 0) { years--; months += 12; }
-                return `${years}Y, ${months}M`;
+
+            // --- ADMIN PANEL METHODS ---
+            exportCSV() {
+                if (!this.assets.length) return alert("No data to export.");
+                const headers = "Asset Tag,Type,Brand,Model,Serial Number,Status,Purchase Date,Repair Count\n";
+                const rows = this.assets.map(a => `${a.tag},${a.type},${a.brand},${a.model},${a.serial},${a.status},${a.purchaseDate || 'N/A'},${a.repairCount || 0}`).join("\n");
+                const blob = new Blob([headers + rows], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `AssetCare_Export_${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
             },
+            exportPDF() {
+                if (!this.assets.length) return alert("No data to export.");
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                doc.setFontSize(18);
+                doc.text("AssetCare Inventory Report", 14, 15);
+                const tableColumn = ["Tag", "Type", "Brand", "Model", "Serial", "Status"];
+                const tableRows = this.assets.map(a => [a.tag, a.type, a.brand, a.model, a.serial, a.status]);
+                doc.autoTable({ head: [tableColumn], body: tableRows, startY: 28 });
+                doc.save(`AssetCare_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+            },
+            changeUserRole(username, newRole) {
+                const u = this.users.find(x => x.username === username);
+                if(u) { u.role = newRole; this.saveDbUsers(); }
+            },
+
+            // --- AUTH ---
+            login() {
+                if(!this.authForm.username || !this.authForm.password) return this.showMessage("Please fill all fields.");
+                const hashedInput = btoa(this.authForm.password);
+                const u = this.users.find(x => x.username === this.authForm.username && x.passwordHash === hashedInput);
+                if(u) { 
+                    if(u.status === 'pending') { this.isWaitingApproval = true; return; }
+                    if(u.status === 'blocked') return this.showMessage("This account has been blocked by Admin.");
+                    this.currentUser = u; 
+                    sessionStorage.setItem('activeUserV2', JSON.stringify(u)); 
+                    this.startHeartbeat();
+                } else { this.showMessage("Invalid Username or Password."); }
+            },
+            register() { 
+                if(!this.authForm.username || !this.authForm.password || !this.authForm.email) return this.showMessage("All fields are required.");
+                if(this.authForm.password !== this.authForm.confirmPassword) return this.showMessage("Passwords do not match.");
+                if(this.users.find(u => u.username === this.authForm.username)) return this.showMessage("Username already exists.");
+                this.users.push({ username: this.authForm.username, email: this.authForm.email, passwordHash: btoa(this.authForm.password), role: 'user', status: 'pending', requestDate: new Date().toLocaleString(), lastSeen: Date.now() }); 
+                this.saveDbUsers(); this.authView = 'login'; this.authForm = { username: '', password: '', confirmPassword: '', email: '' };
+                this.isWaitingApproval = true;
+            },
+            logout() { clearInterval(this.heartbeatTimer); this.currentUser = null; sessionStorage.removeItem('activeUserV2'); this.activeTab = 'dashboard'; },
+
+            // --- HELPERS ---
+            isValidEmail(email) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); },
+            isValidPassword(p) { return /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[\W_]).{8,}$/.test(p); },
+            showMessage(msg, type = 'error') { this.authMessage = msg; this.messageColor = type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'; setTimeout(() => { this.authMessage = ''; }, 5000); },
+            loadData() {
+                let storedUsers = localStorage.getItem('assetCareUsers_v2');
+                if (!storedUsers) {
+                    const defaultAdmin = [{ username: "admin", passwordHash: btoa("SuperAdmin#2026"), role: "admin", status: "active", email: "admin@assetcare.com", lastSeen: 0 }];
+                    localStorage.setItem('assetCareUsers_v2', JSON.stringify(defaultAdmin));
+                    this.users = defaultAdmin;
+                } else { this.users = JSON.parse(storedUsers); }
+                this.assets = JSON.parse(localStorage.getItem('companyAssets') || '[]');
+            },
+            startHeartbeat() { this.updateHeartbeat(); this.heartbeatTimer = setInterval(() => this.updateHeartbeat(), 5000); },
+            updateHeartbeat() {
+                if(!this.currentUser) return;
+                const uIdx = this.users.findIndex(x => x.username === this.currentUser.username);
+                if(uIdx !== -1) { this.users[uIdx].lastSeen = Date.now(); this.saveDbUsers(); }
+            },
+            isOnline(user) { return user.lastSeen && (Date.now() - user.lastSeen) < 15000; },
+            addSingleDevice() { this.assets.push({ ...this.singleForm, status: 'Received for Repair', repairs: [], repairCount: 0 }); this.saveDbAssets(); this.singleForm = { tag: '', type: '', brand: '', model: '', serial: '', purchaseDate: '' }; this.activeTab = 'inventory'; },
+            updateStatus(asset) { if(asset.status === 'Ready') asset.repairCount = (asset.repairCount || 0) + 1; this.saveDbAssets(); },
+            toggleUserBlock(u) { const x = this.users.find(z => z.username === u); if(x) x.status = x.status === 'blocked' ? 'active' : 'blocked'; this.saveDbUsers(); },
+            calculateTotalRepairCost(a) { return (a.repairs || []).reduce((s, i) => s + (parseFloat(i.cost) || 0), 0); },
+            calculateAge(d) { if (!d || d === 'N/A') return "Unknown"; const b = new Date(d); const n = new Date(); let y = n.getFullYear() - b.getFullYear(); let m = n.getMonth() - b.getMonth(); if (m < 0) { y--; m += 12; } return `${y}Y, ${m}M`; },
             handleFileUpload(event) {
-                const file = event.target.files[0];
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const rows = e.target.result.split('\n');
-                    rows.forEach((row, index) => {
-                        if(index === 0 || !row.trim()) return;
-                        const cols = row.split(',').map(c => c.trim());
-                        if(cols.length >= 5) {
-                            this.assets.push({ 
-                                tag: cols[0], type: cols[1], brand: cols[2], model: cols[3], serial: cols[4], purchaseDate: cols[5], 
-                                status: 'Received for Repair', repairs: [], repairCount: 0 
-                            });
-                        }
-                    });
-                    this.saveDbAssets();
-                    this.activeTab = 'inventory';
+                    rows.forEach((row, i) => { if(i > 0 && row.trim()) { const c = row.split(',').map(x => x.trim()); this.assets.push({ tag: c[0], type: c[1], brand: c[2], model: c[3], serial: c[4], purchaseDate: c[5], status: 'Received for Repair', repairs: [], repairCount: 0 }); } });
+                    this.saveDbAssets(); this.activeTab = 'inventory';
                 };
-                reader.readAsText(file);
+                reader.readAsText(event.target.files[0]);
             },
-            addRepair(tag) {
-                const a = this.assets.find(x => x.tag === tag);
-                const d = this.draftRepairs[tag];
-                if(a && d && d.problem) {
-                    if(!a.repairs) a.repairs = [];
-                    a.repairs.push({...d, date: new Date().toLocaleDateString()});
-                    this.draftRepairs[tag] = {};
-                    this.saveDbAssets();
-                }
-            },
+            addRepair(tag) { const a = this.assets.find(x => x.tag === tag); const d = this.draftRepairs[tag]; if(a && d && d.problem) { if(!a.repairs) a.repairs = []; a.repairs.push({...d, date: new Date().toLocaleDateString()}); this.draftRepairs[tag] = {}; this.saveDbAssets(); } },
             getDraft(tag) { if(!this.draftRepairs[tag]) this.draftRepairs[tag] = {problem:'', cost:0}; return this.draftRepairs[tag]; },
             statusColor(s) { return s === 'Ready' ? 'bg-green-100 text-green-700' : (s === 'Irreparable' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'); },
             tabClass(t) { return this.activeTab === t ? 'text-blue-400 font-black border-b-2 border-blue-400 pb-1' : 'text-gray-400 hover:text-white transition'; },
             deleteAsset(tag) { if(confirm('Delete?')) { this.assets = this.assets.filter(a => a.tag !== tag); this.saveDbAssets(); } },
-            deleteUser(name) { if(confirm(`Permanently delete user ${name}?`)) { this.users = this.users.filter(u => u.username !== name); this.saveDbUsers(); } },
+            deleteUser(name) { if(confirm(`Delete ${name}?`)) { this.users = this.users.filter(u => u.username !== name); this.saveDbUsers(); } },
             saveDbAssets() { localStorage.setItem('companyAssets', JSON.stringify(this.assets)); },
             saveDbUsers() { localStorage.setItem('assetCareUsers_v2', JSON.stringify(this.users)); }
         }
