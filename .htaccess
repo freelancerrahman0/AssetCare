@@ -1,0 +1,7 @@
+# Block direct web access to sensitive configuration, environment, and database dump files
+<FilesMatch "^(database\.php|config\.php|\.env|\.sql|\.git.*|.*\.log)$">
+    Require all denied
+</FilesMatch>
+
+# Disable directory browsing
+Options -Indexes
