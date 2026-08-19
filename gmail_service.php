@@ -15,7 +15,7 @@ function sendEmailSMTP($to, $subject, $htmlContent) {
     if (empty($smtpUser) || empty($smtpPass)) {
         return false;
     }
-
+// B U I L T B Y A B D U R R A H M A N
     $mail = new PHPMailer(true);
 
     try {

@@ -3,9 +3,10 @@ require_once __DIR__ . '/config.php';
 
 $host = getenv('DB_HOST') ?: 'localhost';
 $db   = getenv('DB_NAME') ?: 'assetcare';
-$user = getenv('DB_USER') ?: 'admin';
-$pass = getenv('DB_PASS') ?: '123456'; 
+$user = getenv('DB_USER') ?: 'root';
+$pass = getenv('DB_PASS') ?: ''; 
 
+// B U I L T B Y A B D U R R A H M A N
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -32,6 +33,8 @@ try {
         )");
     } catch (PDOException $e) {}
 
+    // B U I L T B Y A B D U R R A H M A N
+
     try { $pdo->exec("ALTER TABLE slots ADD COLUMN slotName VARCHAR(255) AFTER slotNo"); } catch (PDOException $e) {}
     try { $pdo->exec("ALTER TABLE assets ADD INDEX idx_status (status)"); } catch (PDOException $e) {}
     try { $pdo->exec("ALTER TABLE assets ADD INDEX idx_tag (tag)"); } catch (PDOException $e) {}
@@ -46,6 +49,8 @@ try {
             $stmt->execute(['admin', 'admin@quantanite.com', $defaultHash, 'admin', 'active', '', 0, 1]);
         }
     } catch (PDOException $e) {}
+
+    // B U I L T B Y A B D U R R A H M A N
 
 } catch (PDOException $e) {
     header("Content-Type: application/json");

@@ -1,5 +1,5 @@
 <?php
-// Start session with secure cookie configurations
+// Start session with secure cookie configurations // B U I L T B Y A B D U R R A H M A N
 if (session_status() === PHP_SESSION_NONE) {
     session_set_cookie_params([
         'lifetime' => 0,
@@ -33,7 +33,7 @@ require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/gmail_service.php';
 
 $action = $_GET['action'] ?? '';
-$data = json_decode(file_get_contents('php://input'), true) ?? [];
+$data = json_decode(file_get_contents('php://input'), true) ?? [];  // B U I L T B Y A B D U R R A H M A N
 
 function getCurrentUser() {
     global $pdo;
@@ -62,7 +62,7 @@ function getCurrentUser() {
         }
     }
     return null;
-}
+} // B U I L T B Y A B D U R R A H M A N
 
 function requireAuth() {
     $user = getCurrentUser();
@@ -82,7 +82,7 @@ function requireRoles(array $allowedRoles) {
     return $user;
 }
 
-// PUBLIC API ENDPOINTS
+// PUBLIC API ENDPOINTS  // B U I L T B Y A B D U R R A H M A N
 
 if ($action === 'login') {
     $username = trim($data['username'] ?? '');
@@ -108,7 +108,7 @@ if ($action === 'login') {
         }
 
         $token = bin2hex(random_bytes(32));
-        $upToken = $pdo->prepare("UPDATE users SET api_token = ? WHERE username = ?");
+        $upToken = $pdo->prepare("UPDATE users SET api_token = ? WHERE username = ?"); // B U I L T B Y A B D U R R A H M A N
         $upToken->execute([$token, $user['username']]);
 
         $user['api_token'] = $token;
@@ -126,7 +126,7 @@ elseif ($action === 'request_reset_code') {
     $email = trim($data['email'] ?? '');
 
     if (empty($username) || empty($email)) {
-        echo json_encode(["success" => false, "message" => "Username and email are required."]);
+        echo json_encode(["success" => false, "message" => "Username and email are required."]); // B U I L T B Y A B D U R R A H M A N
         exit;
     }
 
@@ -150,7 +150,7 @@ elseif ($action === 'request_reset_code') {
                 <div style='background: #f3f4f6; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; border-radius: 8px; margin: 20px 0;'>
                     $otp
                 </div>
-                <p style='color: #dc2626; font-weight: bold;'>This code will expire in 1 minute.</p>
+                <p style='color: #dc2626; font-weight: bold;'>This code will expire in 1 minute.</p> // B U I L T B Y A B D U R R A H M A N
             </div>
         ";
 
@@ -162,7 +162,7 @@ elseif ($action === 'request_reset_code') {
 }
 
 elseif ($action === 'verify_reset_code') {
-    $username = trim($data['username'] ?? '');
+    $username = trim($data['username'] ?? ''); // B U I L T B Y A B D U R R A H M A N
     $code = trim($data['code'] ?? '');
 
     if (empty($username) || empty($code)) {
@@ -177,7 +177,7 @@ elseif ($action === 'verify_reset_code') {
     if ($user && $user['reset_code'] && $user['reset_expires']) {
         if (strtotime($user['reset_expires']) > time()) {
             if (password_verify($code, $user['reset_code'])) {
-                $_SESSION['pwd_reset_auth_user'] = $username;
+                $_SESSION['pwd_reset_auth_user'] = $username; // B U I L T B Y A B D U R R A H M A N
                 echo json_encode(["success" => true]);
                 exit;
             }
@@ -195,7 +195,7 @@ elseif ($action === 'reset_password') {
     $authorizedUser = $_SESSION['pwd_reset_auth_user'] ?? null;
     $currentUser = getCurrentUser();
 
-    $isSelfResetAllowed = ($currentUser && $currentUser['username'] === $username && $currentUser['mustResetPassword'] === 1);
+    $isSelfResetAllowed = ($currentUser && $currentUser['username'] === $username && $currentUser['mustResetPassword'] === 1); // B U I L T B Y A B D U R R A H M A N
     
     if (!$isSelfResetAllowed && ($authorizedUser !== $username)) {
         echo json_encode(["success" => false, "message" => "Unauthorized password reset attempt."]);
@@ -208,7 +208,7 @@ elseif ($action === 'reset_password') {
     }
 
     $newHash = password_hash($newPass, PASSWORD_DEFAULT);
-    $stmt = $pdo->prepare("UPDATE users SET passwordHash = ?, mustResetPassword = 0, reset_code = NULL, reset_expires = NULL WHERE username = ?");
+    $stmt = $pdo->prepare("UPDATE users SET passwordHash = ?, mustResetPassword = 0, reset_code = NULL, reset_expires = NULL WHERE username = ?"); // B U I L T B Y A B D U R R A H M A N
     $stmt->execute([$newHash, $username]);
 
     unset($_SESSION['pwd_reset_auth_user']);
@@ -223,7 +223,7 @@ requireAuth();
 
 if ($action === 'load') {
     $users = $pdo->query("SELECT username, email, role, status, requestDate, lastSeen, mustResetPassword FROM users")->fetchAll(PDO::FETCH_ASSOC);
-    $assets = $pdo->query("SELECT tag, type, brand, model, serial, status, purchaseDate, repairCount, deliveryCount, repairs_json FROM assets")->fetchAll(PDO::FETCH_ASSOC);
+    $assets = $pdo->query("SELECT tag, type, brand, model, serial, status, purchaseDate, repairCount, deliveryCount, repairs_json FROM assets")->fetchAll(PDO::FETCH_ASSOC); // B U I L T B Y A B D U R R A H M A N
     $slots = $pdo->query("SELECT id, sn, date_val, slotNo, slotName, totalAssets, returnToIT, eol, pending, remarks FROM slots ORDER BY id DESC")->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($assets as &$asset) {
@@ -232,7 +232,7 @@ if ($action === 'load') {
     }
     unset($asset);
 
-    echo json_encode(["success" => true, "users" => $users, "assets" => $assets, "slots" => $slots, "serverTime" => time() * 1000]);
+    echo json_encode(["success" => true, "users" => $users, "assets" => $assets, "slots" => $slots, "serverTime" => time() * 1000]); // B U I L T B Y A B D U R R A H M A N
     exit;
 }
 
@@ -248,7 +248,7 @@ elseif ($action === 'change_password') {
 
     if (!$user || !password_verify($currentPass, $user['passwordHash'])) {
         echo json_encode(["success" => false, "message" => "Current password is incorrect."]);
-        exit;
+        exit; // B U I L T B Y A B D U R R A H M A N
     }
 
     if (strlen($newPass) < 8) {
@@ -288,7 +288,7 @@ elseif ($action === 'save_user') {
     
     $username = trim($data['username'] ?? '');
     $email = trim($data['email'] ?? '');
-    $mustReset = isset($data['mustResetPassword']) ? intval($data['mustResetPassword']) : 0;
+    $mustReset = isset($data['mustResetPassword']) ? intval($data['mustResetPassword']) : 0; // B U I L T BY A B D U R R A H M A N
     $rawPassword = $data['password'] ?? null;
 
     if (empty($username)) {
@@ -297,6 +297,13 @@ elseif ($action === 'save_user') {
     }
 
     if (!empty($rawPassword)) {
+        $checkStmt = $pdo->prepare("SELECT username FROM users WHERE username = ? OR email = ?");
+        $checkStmt->execute([$username, $email]);
+        if ($checkStmt->fetch()) {
+            echo json_encode(["success" => false, "message" => "This email or user name is already exist."]);
+            exit;
+        }
+        
         $finalHash = password_hash($rawPassword, PASSWORD_DEFAULT);
     } else {
         $stmt = $pdo->prepare("SELECT passwordHash FROM users WHERE username = ?");
@@ -322,7 +329,7 @@ elseif ($action === 'save_user') {
     ]);
 
     if (!empty($rawPassword) && !empty($email)) {
-        $portalLink = $data['portalLink'] ?? (isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '');
+        $portalLink = $data['portalLink'] ?? (isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : ''); // B U I LT B Y A B D U R R A H M A N
         $subject = "Welcome to AssetCare - Account Created";
         $body = "
             <div style='font-family: Arial, sans-serif; padding: 20px; color: #333;'>
@@ -344,7 +351,7 @@ elseif ($action === 'save_user') {
 
 elseif ($action === 'delete_user') {
     requireRoles(['admin']);
-    $stmt = $pdo->prepare("DELETE FROM users WHERE username = ?");
+    $stmt = $pdo->prepare("DELETE FROM users WHERE username = ?"); // B UI L T B Y A B D U R R A H M A N
     $stmt->execute([$data['username'] ?? '']);
     echo json_encode(["success" => true]);
     exit;
@@ -396,7 +403,7 @@ elseif ($action === 'save_slot') {
 
 elseif ($action === 'delete_slot') {
     requireRoles(['admin', 'Maintenance']);
-    $stmt = $pdo->prepare("DELETE FROM slots WHERE id = ?");
+    $stmt = $pdo->prepare("DELETE FROM slots WHERE id = ?"); // B U I L T B Y A B D U R R A H M A N
     $stmt->execute([$data['id'] ?? 0]);
     echo json_encode(["success" => true]);
     exit;

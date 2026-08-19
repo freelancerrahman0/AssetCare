@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AssetCare - Enterprise Management</title>
-    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="icon" type="image/png" href="favicon.png">
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -16,8 +16,8 @@
 <!-- B UI L T BY A B D U R R A H M A N -->
 <body class="bg-[#F5F5F7] font-sans text-gray-900 overflow-x-hidden">
     <div id="app" class="min-h-screen flex flex-col relative">
-        <div v-if="isInitialLoading"
-            class="fixed inset-0 bg-[#F5F5F7] z-[9999] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div v-if="isInitialLoading" class="fixed inset-0 bg-[#F5F5F7] z-[9999] flex flex-col items-center justify-center transition-opacity duration-500">
+            <img src="logo.png" alt="Logo" class="h-32 w-auto mb-4 drop-shadow-md object-contain">
             <i class="fas fa-circle-notch fa-spin text-5xl text-blue-500 mb-6 drop-shadow-md"></i>
             <h1 class="text-3xl font-bold text-gray-900 tracking-tight mb-2">AssetCare</h1>
             <p class="text-sm font-medium text-gray-500 uppercase tracking-widest animate-pulse">Establishing Secure
@@ -167,12 +167,11 @@
             </div>
         </div><!-- B UI L T BY A B D U R R A H M A N -->
 
-        <div v-else-if="!currentUser"
-            class="min-h-screen flex flex-col items-center justify-center bg-[#F5F5F7] p-4 relative">
-            <div
-                class="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-full max-w-md border border-gray-100 animate-pop hover-lift z-10">
-                <div class="text-center mb-8"><i
-                        class="fas fa-shield-alt text-4xl text-blue-500 mb-3 hover:rotate-12 transition-transform duration-500"></i>
+        <div v-else-if="!currentUser" class="min-h-screen flex flex-col items-center justify-center bg-[#F5F5F7] p-4 relative">
+            <img src="logo.png" alt="Logo" class="h-32 w-auto mb-8 drop-shadow-md object-contain z-10">    
+            <div class="bg-white p-8 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] w-full max-w-md border border-gray-100 animate-pop hover-lift z-10">
+                <div class="text-center mb-8">
+                    <i class="fas fa-shield-alt text-4xl text-blue-500 mb-3 hover:rotate-12 transition-transform duration-500"></i>
                     <h1 class="text-2xl font-semibold text-gray-900 tracking-tight">AssetCare</h1>
                 </div>
 
@@ -767,8 +766,8 @@
                                 </div>
                                 <button @click="changePassword" class="bg-blue-500 text-white font-medium px-6 py-3 rounded-xl smooth-btn text-sm shadow-md mt-2">Update Password</button>
                             </div>
-                            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest pt-4">Email Configuration</h3>
-                            <div class="space-y-3">
+                            <div v-if="currentUser.role === 'admin'" class="space-y-3">
+                                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest pt-4">Email Configuration</h3>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div><label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">New Email (@quantanite.com)</label><input v-model="profileUpdate.newEmail" type="email" placeholder="username@quantanite.com" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl mt-1 outline-none focus:ring-2 focus:ring-blue-500/50 input-smooth text-sm"></div>
                                     <div><label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider ml-1">Confirm New Email</label><input v-model="profileUpdate.confirmEmail" type="email" placeholder="Confirm Email" class="w-full bg-gray-50 border border-gray-200 p-3 rounded-xl mt-1 outline-none focus:ring-2 focus:ring-blue-500/50 input-smooth text-sm"></div>

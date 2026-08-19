@@ -1,4 +1,5 @@
 const { createApp } = Vue;
+// B U I L T B Y A B D U R R A H M A N
 
 createApp({
     data: () => ({
@@ -614,11 +615,15 @@ createApp({
             }
         },
         changeEmail() {
+            if (this.currentUser.role !== 'admin') {
+                return alert("Unauthorized: Only admins can change email addresses.");
+            }
             if (!confirm("Are you sure for the changes?")) return;
             const { newEmail: e, confirmEmail: t } = this.profileUpdate;
             if (!e || !/^[\w-\.]+@quantanite\.com$/i.test(e)) return alert("Warning: Invalid domain! Only @quantanite.com addresses are allowed.");
             if (e !== t) return alert("Warning: The new email and confirm email addresses do not match!");
-            const s = this.users.findIndex((e => e.username === this.currentUser.username)); - 1 !== s && (this.users[s].email = e, this.saveDbUser(this.users[s]), this.currentUser.email = e, sessionStorage.setItem("activeUserV2", JSON.stringify(this.currentUser)), this.profileUpdate.newEmail = "", this.profileUpdate.confirmEmail = "", alert("Email updated successfully!"))
+            const s = this.users.findIndex((e => e.username === this.currentUser.username)); 
+            -1 !== s && (this.users[s].email = e, this.saveDbUser(this.users[s]), this.currentUser.email = e, sessionStorage.setItem("activeUserV2", JSON.stringify(this.currentUser)), this.profileUpdate.newEmail = "", this.profileUpdate.confirmEmail = "", alert("Email updated successfully!"))
         },
         deleteUser(e) { confirm("Are you sure for the changes?") && (this.users = this.users.filter((t => t.username !== e)), this.deleteDbUser(e)) },// <!-- B UI L T BY A B D U R R A H M A N -->
         changeUserRole(e, t, s) {
@@ -637,7 +642,8 @@ createApp({
             if (!e.username || !e.password || !e.email) return alert("All fields are required.");
             if (e.password.length < 8) return alert("Initial password must be at least 8 characters.");
             if (!/^[\w-\.]+@quantanite\.com$/i.test(e.email)) return alert("Email must end with @quantanite.com");// <!-- BUILT BY A B D U R R A H M A N -->
-            if (this.users.find((t => t.username === e.username))) return alert("Username already exists.");
+            if (this.users.find(t => t.username.toLowerCase() === e.username.toLowerCase() || t.email.toLowerCase() === e.email.toLowerCase())) 
+                { return alert("Username or email already exists.");}
             
             const t = { 
                 username: e.username, 
